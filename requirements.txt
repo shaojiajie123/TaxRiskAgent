@@ -1,0 +1,15 @@
+langchain
+langchain-community
+#langchain-openai
+langchain-text-splitters
+chromadb
+openai
+pandas
+openpyxl
+jieba
+streamlit
+python-dotenv
+tiktoken
+rank-bm25
+pytest
+sentence-transformers
