@@ -12,13 +12,13 @@ from src.tools.finance_analyzer import FinanceAnalyzer  # 该模块能发现风�
 from src.rag.hybrid_retriever import HybridRetriever    # 该模块能根据查询去检索法规全文，但它本身不知道该何时进行检索
 
 
-class EnhancedFinanceAnalyzer(FinanceAnalyzer): # 继承
+class EnhancedFinanceAnalyzer(FinanceAnalyzer): # 继承父类FinanceAnalyzer 结合FinanceAnalyzer and HybridRetriever 返回的风险列表中包含法规全文 而不仅仅是法规文号
     """
     继承 FinanceAnalyzer 的全部检查能力，
     并增加“自动为风险检索法规原文”的能力。
     """
 
-    def __init__(self, file_path: str):
+    def __init__(self, file_path: str):  # self.属性即时实例属性，每个实例特有的属性，相互独立，互不干扰
         """
         初始化：先调父类加载Excel，再初始化检索器。
         """
@@ -27,7 +27,7 @@ class EnhancedFinanceAnalyzer(FinanceAnalyzer): # 继承
 
         # 初始化混合检索器，用于查找法规全文
         print("🔧 正在初始化法规检索器...")
-        self.retriever = HybridRetriever(alpha=0.5)
+        self.retriever = HybridRetriever(alpha=0.5)     # self.retriever = 我这个实例的检索器 相比于父类的风险分析器，该分析器在初始化时多添加了混合检索功能
         print("   法规检索器就绪")
 
     # ================================================================
