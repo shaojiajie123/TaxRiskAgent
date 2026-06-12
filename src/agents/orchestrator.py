@@ -11,9 +11,9 @@ sys.path.append(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(
 from src.rag.answer_generator import AnswerGenerator
 from src.rag.hybrid_retriever import HybridRetriever
 from src.agents.planner import TaskPlanner
-from src.agents.vat_agent import VATCheckAgent
-from src.agents.income_tax_agent import IncomeTaxCheckAgent
-from src.agents.invoice_agent import InvoiceCheckAgent
+from src.agents.vat_checker import VATChecker
+from src.agents.income_tax_checker import IncomeTaxChecker
+from src.agents.invoice_checker import InvoiceChecker
 
 
 class TaxRiskOrchestrator:
@@ -102,17 +102,17 @@ class TaxRiskOrchestrator:
         # 定义三个Agent的创建函数
         def run_vat():
             print("   🔍 增值税Agent 启动...")
-            agent = VATCheckAgent(file_path)
+            agent = VATChecker(file_path)
             return agent.run_full_analysis()
 
         def run_income_tax():
             print("   🔍 所得税Agent 启动...")
-            agent = IncomeTaxCheckAgent(file_path)
+            agent = IncomeTaxChecker(file_path)
             return agent.run_full_analysis()
 
         def run_invoice():
             print("   🔍 发票合规Agent 启动...")
-            agent = InvoiceCheckAgent(file_path)
+            agent = InvoiceChecker(file_path)
             return agent.run_full_analysis()
 
         # 使用线程池并行执行三个Agent

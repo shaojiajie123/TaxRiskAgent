@@ -11,7 +11,7 @@ sys.path.append(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(
 from src.tools.finance_analyzer import FinanceAnalyzer
 
 
-class InvoiceCheckAgent(FinanceAnalyzer):
+class InvoiceChecker(FinanceAnalyzer):
     """
     发票合规专项检查 Agent
     继承 FinanceAnalyzer 的 Excel 加载和风险列表管理能力，
@@ -174,7 +174,7 @@ class InvoiceCheckAgent(FinanceAnalyzer):
 if __name__ == "__main__":
     test_file = "data/sample/未来科技_2024Q3_财务数据.xlsx"
     if os.path.exists(test_file):
-        agent = InvoiceCheckAgent(test_file)
+        agent = InvoiceChecker(test_file)
         report = agent.run_full_analysis()
         print(f"\n📋 发票合规检查摘要：")
         print(f"  总风险数：{report['summary']['total_risks']}")

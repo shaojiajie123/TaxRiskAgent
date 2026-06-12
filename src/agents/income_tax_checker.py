@@ -10,7 +10,7 @@ sys.path.append(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(
 from src.tools.finance_analyzer import FinanceAnalyzer
 
 
-class IncomeTaxCheckAgent(FinanceAnalyzer):
+class IncomeTaxChecker(FinanceAnalyzer):
     """
     所得税专项检查 Agent
     继承 FinanceAnalyzer 的 Excel 加载和风险列表管理能力，
@@ -154,7 +154,7 @@ class IncomeTaxCheckAgent(FinanceAnalyzer):
 if __name__ == "__main__":
     test_file = "data/sample/未来科技_2024Q3_财务数据.xlsx"
     if os.path.exists(test_file):
-        agent = IncomeTaxCheckAgent(test_file)
+        agent = IncomeTaxChecker(test_file)
         report = agent.run_full_analysis()
         print(f"\n📋 所得税检查摘要：")
         print(f"  总风险数：{report['summary']['total_risks']}")
