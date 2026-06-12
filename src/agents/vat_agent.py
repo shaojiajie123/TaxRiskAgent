@@ -4,6 +4,7 @@
 """
 import os
 import sys
+from datetime import datetime
 
 sys.path.append(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
 
@@ -41,18 +42,11 @@ class VATCheckAgent(FinanceAnalyzer):
 
     def _check_vat_row(self, index: int, row):
         """对单条记录执行全部增值税检查"""
-        # VA01：销项税额与收入×税率是否匹配
         self._check_vat_output_tax(index, row)
-        # VA02：进项税额与成本×税率是否匹配
         self._check_vat_input_tax(index, row)
-        # VA03：简易计税与一般计税是否混用
         self._check_vat_method(index, row)
-        # VA04：是否应享未享加计抵减
         self._check_vat_extra_deduction(index, row)
 
-    # ================================================================
-    # VA01：销项税额验算
-    # ================================================================
     def _check_vat_output_tax(self, index: int, row):
         """验算销项税额 = 收入金额 × 适用税率"""
         business = str(row.get("业务描述", ""))
@@ -83,9 +77,6 @@ class VATCheckAgent(FinanceAnalyzer):
                 "law_reference": "财税〔2016〕36号第十五条、第二十五条"
             })
 
-    # ================================================================
-    # VA02：进项税额验算
-    # ================================================================
     def _check_vat_input_tax(self, index: int, row):
         """验算进项税额 = 成本金额 × 适用税率"""
         business = str(row.get("业务描述", ""))
@@ -116,9 +107,6 @@ class VATCheckAgent(FinanceAnalyzer):
                 "law_reference": "财税〔2016〕36号第二十五条"
             })
 
-    # ================================================================
-    # VA03：计税方式检查
-    # ================================================================
     def _check_vat_method(self, index: int, row):
         """检查简易计税与一般计税是否混用"""
         business = str(row.get("业务描述", ""))
@@ -126,7 +114,6 @@ class VATCheckAgent(FinanceAnalyzer):
         income = row.get("收入金额", 0) or 0
         input_tax = row.get("进项税额", 0) or 0
 
-        # 简易计税项目不能抵扣进项
         if method == "简易计税" and input_tax > 0:
             self.risks.append({
                 "row_index": int(index),
@@ -139,7 +126,6 @@ class VATCheckAgent(FinanceAnalyzer):
                 "law_reference": "财税〔2016〕36号附件1第十八条"
             })
 
-        # 简易计税不能开具增值税专用发票（特定情况除外）
         if method == "简易计税" and income > 0:
             invoice_type = str(row.get("发票类型", ""))
             if "专用发票" in invoice_type:
@@ -155,15 +141,38 @@ class VATCheckAgent(FinanceAnalyzer):
                 })
 
     # ================================================================
-    # VA04：加计抵减应享未享检查
+    # VA04：加计抵减应享未享检查（修复版——增加政策有效期判断）
     # ================================================================
     def _check_vat_extra_deduction(self, index: int, row):
-        """检查生产、生活性服务业纳税人是否应享未享加计抵减"""
+        """
+        检查生产、生活性服务业纳税人是否应享未享加计抵减。
+        
+        政策时效性说明（来自国家税务总局公告2019年第39号第七条）：
+        - 政策有效期：2019年4月1日 至 2021年12月31日
+        - 2022年起，该政策已被新政策替代（但新政策的核心逻辑相似）
+        - 因此，若检查的是2024年的数据，则不应用此项政策
+        
+        本项目为 Demo，侧重展示时效性判断的逻辑，真实生产环境
+        可维护一个政策有效期配置表，由系统自动判断法规是否适用。
+        """
         business = str(row.get("业务描述", ""))
         is_enjoyed = str(row.get("是否享受加计抵减", "否"))
         input_tax = row.get("进项税额", 0) or 0
+        business_date = str(row.get("日期", ""))
 
-        # 属于生产、生活性服务业的业务类型
+        # ── 第1步：政策有效期判断 ──
+        # 如果业务日期明确晚于政策失效日，则本政策不适用，直接跳过
+        POLICY_EXPIRY_DATE = datetime(2021, 12, 31)
+        if business_date:
+            try:
+                biz_date_obj = datetime.strptime(business_date, "%Y-%m-%d")
+                if biz_date_obj > POLICY_EXPIRY_DATE:
+                    # 业务发生在政策失效之后，无需检查此项
+                    return
+            except ValueError:
+                pass  # 日期格式有问题，保守起见继续检查
+
+        # ── 第2步：业务类型判断 ──
         service_keywords = ["咨询", "开发", "设计", "运维", "转让", "策划", "法律", "审计", "推广", "广告"]
 
         if any(kw in business for kw in service_keywords) and input_tax > 0:
