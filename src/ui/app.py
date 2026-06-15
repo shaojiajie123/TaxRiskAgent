@@ -137,11 +137,22 @@ if mode == "📊 财务合规检查":
                 for i, risk in enumerate(high_risks[:5], 1):
                     with st.expander(f"{i}. {risk.get('business', '未知业务')} - {risk.get('detail', '无详情')}"):
                         st.markdown(f"**法律依据：** {risk.get('law_reference', '无')}")
-                        st.markdown(f"**法规原文：**")
-                        st.text(risk.get('law_full_text', '无原文')[:500])
-                        if "ai_advice" in risk:
+                        
+                        # 法规原文
+                        law_text = risk.get('law_full_text', '')
+                        if law_text:
+                            st.markdown(f"**法规原文：**")
+                            st.text(law_text[:500])
+                        else:
+                            st.caption("（法规原文暂未检索到）")
+                        
+                        # AI建议
+                        ai_advice = risk.get('ai_advice', '')
+                        if ai_advice:
                             st.markdown(f"**AI建议：**")
-                            st.info(risk['ai_advice'])
+                            st.info(ai_advice)
+                        else:
+                            st.caption("（AI建议生成中...）")
 
         else:
             st.warning("请先上传一份财务报表文件")

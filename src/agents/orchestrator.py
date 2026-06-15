@@ -188,18 +188,56 @@ class TaxRiskOrchestrator:
     # 工具3：AI建议生成
     # ================================================================
     def _tool_generate_advice(self, args: dict) -> dict:
-        risk_info = args.get("risk_info", {})
-        if not risk_info:
-            last_result = self.context.get("last_result", {})
-            risks = last_result.get("risks", [])
-            if risks:
-                risk_info = risks[0]
-        if not risk_info:
-            return {"error": "没有可用的风险信息"}
-        query = f"{risk_info.get('check_name', '')} {risk_info.get('business', '')} 如何整改？"
-        result = self.answer_generator.answer(query)
-        print(f"   ✅ AI建议已生成")
-        return {"risk": risk_info, "advice": result.get("answer", "")}
+        """
+        为第一步发现的高风险项逐条生成 AI 建议，
+        并直接回填到 step_1_result['risks'] 中。
+        """
+        # 1. 取第一步的分析结果
+        analysis_result = self.context.get("step_1_result", {})
+        risks = analysis_result.get("risks", [])
+        high_risks = [r for r in risks if r.get("risk_level") == "高"]
+
+        if not high_risks:
+            print("   没有高风险项，跳过 AI 建议生成")
+            return {"advised": 0}
+
+        print(f"   正在为 {len(high_risks)} 条高风险项生成 AI 建议...")
+
+        for i, risk in enumerate(high_risks):
+            business = risk.get("business", "")
+            check_name = risk.get("check_name", "")
+            law_ref = risk.get("law_reference", "")
+
+            # 构造查询
+            query = f"业务'{business}'存在'{check_name}'问题，依据{law_ref}，请给出整改建议"
+            try:
+                result = self.answer_generator.answer(query)
+                advice_text = result.get("answer", "")
+                # 取第一个引用法规的全文
+                docs = result.get("documents", [])
+                if docs:
+                    law_full = docs[0][0][:500]
+                    law_title = docs[0][2].get("title", "未知法规")
+                else:
+                    law_full = ""
+                    law_title = ""
+
+                # ★ 关键：直接修改 risk 字典（它是 risks 列表里那个字典的引用）
+                risk["ai_advice"] = advice_text
+                risk["law_full_text"] = law_full
+                risk["law_title"] = law_title
+
+                print(f"   [{i+1}/{len(high_risks)}] {business} → 建议已生成并回填")
+            except Exception as e:
+                print(f"   [{i+1}/{len(high_risks)}] {business} → 生成失败：{e}")
+                risk["ai_advice"] = f"生成建议时出错：{e}"
+
+        # 2. 更新上下文
+        self.context["step_1_result"] = analysis_result
+        self.context["last_result"] = analysis_result
+
+        print(f"   ✅ AI建议生成并回填完成，共处理 {len(high_risks)} 条")
+        return {"advised": len(high_risks)}
 
     # ================================================================
     # 工具4：报告生成
@@ -220,10 +258,36 @@ class TaxRiskOrchestrator:
     # ================================================================
     def _aggregate_results(self, task: str, plan: list) -> dict:
         last_result = self.context.get("last_result", {})
+
+        # 问答路径：调用 AnswerGenerator 生成完整回答
         if len(plan) == 1 and plan[0]["tool"] == "search_law":
             laws = last_result.get("laws", [])
-            return {"task": task, "intent": "问答", "plan": plan, "laws": laws}
-        return {"task": task, "intent": "全面检查", "plan": plan, "report": last_result}
+            try:
+                qa_result = self.answer_generator.answer(task)
+                answer = qa_result.get("answer", "无法生成回答")
+                references = [
+                    {"title": doc[2].get("title", "未知"), "score": doc[1]}
+                    for doc in qa_result.get("documents", [])
+                ]
+            except Exception:
+                answer = "无法生成回答"
+                references = []
+            return {
+                "task": task,
+                "intent": "问答",
+                "plan": plan,
+                "answer": answer,
+                "references": references,
+                "laws": laws
+            }
+
+        # 全面检查路径
+        return {
+            "task": task,
+            "intent": "全面检查",
+            "plan": plan,
+            "report": last_result
+        }
 
 
 # ================================================================
